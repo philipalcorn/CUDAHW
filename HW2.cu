@@ -2,7 +2,6 @@
 // Vector addition on the GPU, with one block
 // To compile: nvcc HW2.cu -o temp
 
-
 /*
  What to do:
  This code adds the vectors on the GPU.
