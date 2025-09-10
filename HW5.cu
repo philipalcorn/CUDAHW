@@ -107,8 +107,8 @@ void printStats(int n)
 
 	printf("--- MP Information for device %d ---\n", n);
 	PRINT_(Multiprocessor Count, multiProcessorCount, d);
-	PRINT_(Shared Memory Per MP, sharedMemPerBlock, d);
-	PRINT_(Registers Per MP, regsPerBlock, ld);
+	PRINT_(Shared Memory Per MP, sharedMemPerBlock, ld);
+	PRINT_(Registers Per MP, regsPerBlock, d);
 	PRINT_(Threads in Warp, warpSize, d);
 	PRINT_(Max Threads per Block, maxThreadsPerBlock, d);
 	
@@ -239,7 +239,7 @@ void printStats(int n)
 	PRINT_(Total Constant Memory, totalConstMem, zu);
 	PRINT_(Total Global Memory, totalGlobalMem, zu);
 	PRINT_(Unified Addressing, unifiedAddressing, d);
-	PRINT_(Unified Function Pointers, unifiedFunctionPointers, ld);
+	PRINT_(Unified Function Pointers, unifiedFunctionPointers, d);
 
 	//PRINT_(UUID, uuid, s);  // 16-byte identifier, print as hex or similar
 	printf("UUID");
