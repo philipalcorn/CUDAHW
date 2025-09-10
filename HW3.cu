@@ -112,6 +112,8 @@ void addVectorsCPU(float *a, float *b, float *c, int n)
 __global__ void addVectorsGPU(float *a, float *b, float *c, int n)
 {
 	int id = threadIdx.x;
+	// Should be threadIdx.x + blockIdx.x * blockDim.x:w
+	
 	
 	while(id < n)
 	{
