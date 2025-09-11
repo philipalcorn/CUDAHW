@@ -9,17 +9,12 @@
  Keep the window at 1024 by 1024.
 */
 
-
-
 // Include files
 #include <stdio.h>
 #include <GL/glut.h>
 
 // Defines
 #define CHECK() cudaErrorCheck(__FILE__, __LINE__)
-
-//globals- generally bad, but we need this one for GLUT
-float* pixels_CPU;
 
 // Constants
 // const is better than define as it forces type checking
@@ -66,17 +61,17 @@ __global__ void checkGetMagnitude();
 //used to progress each iteration of the fractal algorithm
 __device__ void step(float* re, float* im, float A, float B);
 
-__global__ void checkEscapeGPU(float* pixel_array);
+__global__ void checkEscapeGPU(float pixel_x, float pixel_y, float* pixel_array);
 void display();
 
 
 int main(int argc, char** argv)
 {
+	printf("\n");
 	dim3 blockSize;
 	dim3 gridSize;
 
-	// allocate space for our RGB values
-	pixels_CPU = (float*)malloc(WIDTH*HEIGHT*3*sizeof(float)); 
+	float* pixels_CPU = (float*)malloc(WIDTH*HEIGHT*3*sizeof(float)); // allocate space for our RGB values
 	checkAllocation(pixels_CPU);
 
 	// We can fill this array on the GPU and then transfer it to the CPU to display
@@ -87,59 +82,32 @@ int main(int argc, char** argv)
 	setUpDevices(&blockSize, &gridSize);
 	CHECK();
 
-	checkEscapeGPU<<<gridSize, blockSize>>>(pixels_GPU);
-	CHECK();
-	cudaDeviceSynchronize();
-	CHECK();
-
-	
-	cudaMemcpy(pixels_CPU, pixels_GPU,WIDTH*HEIGHT*3*sizeof(float), cudaMemcpyDeviceToHost);
-	CHECK();
-
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-   	glutInitWindowSize(WIDTH, HEIGHT);
-	glutCreateWindow("Fractals--Man--Fractals");
-	glutDisplayFunc(display);
-	glutMainLoop();
-
-
-	//Here are a variety of checks to run to verify functionality
-	
-	/*
-	 
-	//Checking our block size setup
+	//uncomment this line to check your block and grid size assignment
 	checkSetUpDevices(&blockSize, &gridSize);
-	CHECK();
-
-	// Checking our conversion from px coordinate to real number value 
-	checkGetNumFromPX<<<1,1>>>(); 
-	CHECK();
-	cudaDeviceSynchronize(); // need to call this or printf's might not be sent to host
-	CHECK();
 	
-	// Checking our pixel indexing funciton:
-	checkGetPixelIndex<<<1,1>>>(); 
-	CHECK();
-	cudaDeviceSynchronize();
-	CHECK();
+	// Uncomment this to verify functionality of the pixel to real number value
+	// mapping funciton:
+	checkGetNumFromPX<<<1,1>>>(); cudaDeviceSynchronize();
 	
-	// Checking the magnitude function:
-	checkGetMagnitude<<<1,1>>>(); 
-	CHECK();
-	cudaDeviceSynchronize();
-	CHECK();
 	
-	*/
-
+	//Checking our pixel indexing funciton:
+	checkGetPixelIndex<<<1,1>>>(); cudaDeviceSynchronize();
 	
-   	
+	//Checking the magnitude function:
+	checkGetMagnitude<<<1,1>>>(); cudaDeviceSynchronize();
+	//glutInit(&argc, argv);
+	//glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
+   	//glutInitWindowSize(WIDTH, HEIGHT);
+	//glutCreateWindow("Fractals--Man--Fractals");
+   	//glutDisplayFunc(display);
+   	//glutMainLoop();
 	
 	//Do all the processing on the GPU
 	
 	// destination, source, direction)
+	cudaMemcpyAsync(pixels_CPU, pixels_GPU,WIDTH*HEIGHT*3*sizeof(float), cudaMemcpyDeviceToHost);
 	// display (pixels_CPU);
-	
+	printf("\n");
 }
 
 
@@ -178,7 +146,7 @@ void setUpDevices(dim3* blockSize, dim3* gridSize)
 
 	//The minimum number of blocks to hold the pixels in the x and y directions	
 	gridSize->x = (WIDTH-1)/blockSize->x + 1; 
-	gridSize->y = (HEIGHT-1)/blockSize->y + 1; 
+	gridSize->y = (WIDTH-1)/blockSize->y + 1; 
 	gridSize->z = 1; // only two dimensions
 }
 
@@ -244,7 +212,6 @@ __device__ int getPixelIndex(int x, int y, int channel)
 	return (y * WIDTH + x) * 3 + channel;
 }
 
-
 __global__ void checkGetPixelIndex()
 {
 	printf("---Checking PX Index Conversion---\n");
@@ -252,13 +219,13 @@ __global__ void checkGetPixelIndex()
 	printf("Index: %d\n", getPixelIndex(0,0,2));
 	printf("Pixel (100, 2, Green(1))\n");
 	printf("Index: %d\n", getPixelIndex(100,2,1));
-	printf("If width is 1024x1024, this coordinate should be: \n\n"
+	printf("If width is 1024x1024, this coordinate should be: \n"
 			 "\t(y-coord*WIDTH) *3 + x-coord*3 + color_offset \n"
 			 "or, \n"
 			 "\t2*1024*3 + 100*3 + 1 \n" 
-			 "\twhich equals 6,445\n");
-	printf("\n");
+			 "\twhich equals 6,445");
 }
+
 
 
 __device__ float getMagnitude(float x, float y) 
@@ -271,8 +238,6 @@ __global__ void checkGetMagnitude()
 {
 	printf("Mag of (3,4): %f\n", getMagnitude(3,4));
 }
-
-
 //Note: This function modifies the original input.
 __device__ void step(float* re, float* im, float A, float B) 
 {
@@ -281,7 +246,6 @@ __device__ void step(float* re, float* im, float A, float B)
 	*re = re_initial*re_initial - (*im)*(*im) + A;
 	*im = 2 * re_initial * (*im) + B; 
 }
-
 
 __global__ void checkEscapeGPU(float* pixel_array) 
 {
@@ -298,7 +262,7 @@ __global__ void checkEscapeGPU(float* pixel_array)
 	//we want to color everything red
 	int color_index = getPixelIndex(pixel_x, pixel_y, 0);
 	
-	real_component = getNumFromPX(pixel_x, WIDTH, X_LOWER_BOUND, X_UPPER_BOUND);
+		real_component = getNumFromPX(pixel_x, WIDTH, X_LOWER_BOUND, X_UPPER_BOUND);
 	imaginary_component = getNumFromPX(pixel_y, HEIGHT, Y_LOWER_BOUND, Y_UPPER_BOUND);
 
 	int count =0;
@@ -306,26 +270,72 @@ __global__ void checkEscapeGPU(float* pixel_array)
 	{
 		if(getMagnitude(real_component, imaginary_component) > MAX_MAGNITUDE)
 		{
-			// if magnitude exceepds "escape velocity" we color the square red
-			pixel_array[color_index]   = 1;	
-			pixel_array[color_index+1] = 0;	
-			pixel_array[color_index+1] = 0;	
+			// if magnitude exceepds "escape velocity" we color the square red and return
+			
 			return;
 		}
-
 		step(&real_component, &imaginary_component, A, B);
 		count++;
 	}
-
-	//If we make it through all the steps, color the square black
-	pixel_array[color_index]   = 0;	
-	pixel_array[color_index+1] = 0;	
-	pixel_array[color_index+1] = 0;	
 }
+
+
+float escapeOrNotColorCPU (float x, float y) 
+{
+	float mag,tempX;
+	int count;
+
+	count = 0;
+	mag = sqrt(x*x + y*y);;
+	while (mag < MAX_MAGNITUDE && count < MAX_ITERATIONS) 
+	{	
+		tempX = x; //We will be changing the x but we need its old value to find y.
+		x = x*x - y*y + A;
+		y = (2.0 * tempX * y) + B;
+		mag = sqrt(x*x + y*y);
+		count++;
+	}
+	if(count < MAX_ITERATIONS) 
+	{
+		return(0.0);
+	}
+	else
+	{
+		return(1.0);
+	}
+}
+
 
 void display(void) 
 { 
-	glDrawPixels(WIDTH, HEIGHT, GL_RGB, GL_FLOAT, pixels_CPU); 
+	float *pixels; 
+	float x, y, stepSizeX, stepSizeY;
+	int k;
+	
+	//We need the 3 because each pixel has a red, green, and blue value.
+	pixels = (float *)malloc(WIDTH*HEIGHT*3*sizeof(float));
+	
+	stepSizeX = (X_UPPER_BOUND - X_LOWER_BOUND)/((float)WIDTH);
+	stepSizeY = (Y_UPPER_BOUND - Y_LOWER_BOUND)/((float)HEIGHT);
+	
+	k=0;
+	y = Y_LOWER_BOUND;
+	while(y < Y_UPPER_BOUND) 
+	{
+		x = X_LOWER_BOUND;
+		while(x < X_UPPER_BOUND) 
+		{
+			pixels[k] = escapeOrNotColorCPU(x,y);	//Red on or off returned from color
+			pixels[k+1] = 0.0; 	//Green off
+			pixels[k+2] = 0.0;	//Blue off
+			k=k+3;			//Skip to next pixel (3 float jump)
+			x += stepSizeX;
+		}
+		y += stepSizeY;
+	}
+
+	//Putting pixels on the screen.
+	glDrawPixels(WIDTH, HEIGHT, GL_RGB, GL_FLOAT, pixels); 
 	glFlush(); 
 }
 

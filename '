@@ -1,0 +1,231 @@
+// Name: Phil Alcorn
+// Simple Julia CPU.
+// nvcc HW6.cu -o temp -lglut -lGL
+// glut and GL are openGL libraries.
+/*
+ What to do:
+ This code displays a simple Julia fractal using the CPU.
+ Rewrite the code so that it uses the GPU to create the fractal. 
+ Keep the window at 1024 by 1024.
+*/
+
+// Include files
+#include <stdio.h>
+#include <GL/glut.h>
+
+// Defines
+#define CHECK cudaErrorCheck(__FILE__, __LINE__)
+
+// Constants
+// const is better than define as it forces type checking
+const float XMin = 0.0;
+const float XMax =  1.0;
+const float YMin = -1.0;
+const float YMax =  0.0;
+
+const float A =  -0.824;	//Real part of C
+const float B  = -0.1711;	//Imaginary part of C Global variables unsigned int 
+
+// Enums are better than define as they are typechecked 
+enum 
+{
+	MAX_MAGNITUDE = 10, // Considered escaped if the value is larger than this
+	MAX_ITERATIONS = 200, // considered not escaped if you make it this far
+						  //
+	// 32 is square root of 1024, so we process a 1024px^2 area at a time
+	THREAD_WIDTH = 32,
+	THREAD_HEIGHT = 32,
+
+	WIDTH = 1024,
+	HEIGHT = 1024
+}
+
+
+// Function prototypes
+void cudaErrorCheck(const char*, int);
+void setUpDevices(dim3 block_size, dim3 grid_size);
+
+// input either x or y pixel coordinates and get corresponding number
+// based on size of screen
+float getNumFromPX(int position_px, int length_dim, float real_min, float real_max);
+void testMapping();
+// Take all our hit/misses on escapes and fill in the corresponding
+// Pixel array
+void mapColorToPixel(int* colors, int* pixels);
+
+float escapeOrNotColor(float, float);
+__global__ void escapeOrNotColorGPU(float, float);
+void display();
+
+
+int main(int argc, char** argv)
+{
+	dim3 blockSize;
+	dim3 gridSize;
+	setUpDevices(blockSize, gridSize);
+	CHECK;
+	
+	// Uncomment this to verify functionality of the pixel to real number value
+	// mapping funciton:
+	//testMapping();
+
+
+	//float pixels[WIDTH*3][HEIGHT]; // allocate space for our pixels
+
+   	//glutInit(&argc, argv);
+	//glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
+   	//glutInitWindowSize(WIDTH, HEIGHT);
+	//glutCreateWindow("Fractals--Man--Fractals");
+   	//glutDisplayFunc(display);
+   	//glutMainLoop();
+	printf("\n");
+	return 0;
+}
+
+
+void cudaErrorCheck(const char *file, int line)
+{
+	cudaError_t  error;
+	error = cudaGetLastError();
+
+	if(error != cudaSuccess)
+	{
+		printf("\n CUDA ERROR: message = %s, \
+				File = %s, Line = %d\n", cudaGetErrorString(error), 
+				file, line);
+		exit(0);
+	}
+}
+
+void setUpDevices(dim3 block_size, dim3 grid_size) 
+{
+	// One thread per pixel in a 1024x1024 grid, anything larger 
+	// needs more blocks 
+	BlockSize.x = THREAD_WIDTH;
+	BlockSize.y = THREAD_HEIGHT;
+	BlockSize.z = 1;
+
+
+	//The minimum number of blocks to hold the pixels in the x and y directions	
+	GridSize.x = (WIDTH-1)/BlockSize.x + 1; 
+	GridSize.y = (WIDTH-1)/BlockSize.y + 1; 
+	GridSize.z = 1; // only two dimensions
+}
+
+
+
+// This function is designed to work with both real an imaginary. 
+// Pass the pixel position (ie, the 0th pixel out of 1023, or maybe the 432nd
+// pixel), the length of that dimension (maybe the width and height are 
+// different values), and the max and min values on the real number line 
+// (ie, maybe you are mapping the pixels from -2 to 2 on the real number line)
+//
+//
+// How spacing between each pixel when mapped to real (or imaginary)
+// number line: 
+// float px_space = (real_max - real_min) / length_dim; 
+//
+// Designed to work with array values as inputs, so a 1024 pixel dimention
+// takes inputs from 0-1024 for that mapping. 
+//
+// the length_dim-1 makes sure that the end pixel takes on the exact value 
+// of the upper bound.
+
+float getNumFromPX(int position_px, int length_dim, float real_min, float real_max)
+{
+		return real_min + (position_px * (real_max - real_min)/(length_dim-1));
+	
+} 
+
+void testMapping() 
+{
+	printf("X: mapping from 0 to -1, 1024 pixels wide\n"
+			"Pixel pos 0: %f\n" 
+			"Pixel pos 1023: %f\n\n", 
+			getNumFromPX(0,		1024,	0,	1),
+			getNumFromPX(1023,	1024,	0,	1));
+	printf("Y: mapping from -2 to 1, 4096 pixels tall\n"
+			"Pixel pos 0: %f\n"
+			"Pixel pos 1023: %f\n\n", 
+			getNumFromPX(0,		4096,	-2,	1),
+			getNumFromPX(4096,	4096,	-2,	1));
+	printf("You can see there is a small amount of floating point error, "
+			"especially for larger pixel dimensions.\n");
+}
+
+void mapColorToPixel(int* colors, int* pixels);
+
+float escapeOrNotColor (float x, float y) 
+{
+	float mag,tempX;
+	int count;
+
+	count = 0;
+	mag = sqrt(x*x + y*y);;
+	while (mag < MAX_MAGNITUDE && count < MAX_ITERATIONS) 
+	{	
+		tempX = x; //We will be changing the x but we need its old value to find y.
+		x = x*x - y*y + A;
+		y = (2.0 * tempX * y) + B;
+		mag = sqrt(x*x + y*y);
+		count++;
+	}
+	if(count < MAX_ITERATIONS) 
+	{
+		return(0.0);
+	}
+	else
+	{
+		return(1.0);
+	}
+}
+
+__global__ void escapeOrNotColorGPU(float x, float y) 
+{
+	// A thread will operate on the pixel at it's 
+	// threadIdx.x and threadIdx.y coordinates. Fairly straightfoward
+	// mapping
+
+	int x_pos = blockIdx.x*blockDim.x + threadIdx.x;
+	int y_pos = blockIdx.y*blockDim.y + threadIdx.y;
+
+	float mag, tempX;
+	int count =0; // How many times we've attempted to escape
+	
+
+	//need a way to map these ID's to pixels
+}
+
+void display(void) 
+{ 
+	float *pixels; 
+	float x, y, stepSizeX, stepSizeY;
+	int k;
+	
+	//We need the 3 because each pixel has a red, green, and blue value.
+	pixels = (float *)malloc(WIDTH*HEIGHT*3*sizeof(float));
+	
+	stepSizeX = (XMax - XMin)/((float)WIDTH);
+	stepSizeY = (YMax - YMin)/((float)HEIGHT);
+	
+	k=0;
+	y = YMin;
+	while(y < YMax) 
+	{
+		x = XMin;
+		while(x < XMax) 
+		{
+			pixels[k] = escapeOrNotColor(x,y);	//Red on or off returned from color
+			pixels[k+1] = 0.0; 	//Green off
+			pixels[k+2] = 0.0;	//Blue off
+			k=k+3;			//Skip to next pixel (3 float jump)
+			x += stepSizeX;
+		}
+		y += stepSizeY;
+	}
+
+	//Putting pixels on the screen.
+	glDrawPixels(WIDTH, HEIGHT, GL_RGB, GL_FLOAT, pixels); 
+	glFlush(); 
+}
+
