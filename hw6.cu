@@ -1,4 +1,4 @@
-// Name: Phil Alcorn
+// Name: Phil Alcor
 // Simple Julia CPU.
 // nvcc HW6.cu -o temp -lglut -lGL
 // glut and GL are openGL libraries.
@@ -23,23 +23,23 @@ float* pixels_CPU;
 
 // Constants
 // const is better than define as it forces type checking
-const float X_LOWER_BOUND= 0.0;
-const float X_UPPER_BOUND =  1.0;
-const float Y_LOWER_BOUND = -1.0;
-const float Y_UPPER_BOUND =  0.0;
+const float X_LOWER_BOUND = -1.75; 
+const float X_UPPER_BOUND = 1.75;
+const float Y_LOWER_BOUND = -1.75;
+const float Y_UPPER_BOUND =  1.75;
 
 const float A =  -0.824;	//Real part of C
 const float B  = -0.1711;	//Imaginary part of C Global variables unsigned int 
 
-const int MAX_MAGNITUDE = 10; // Considered escaped if the value is larger than this
-const int MAX_ITERATIONS = 200; // considered not escaped if you make it this far
+const int MAX_MAGNITUDE = 100; // Considered escaped if the value is larger than this
+const int MAX_ITERATIONS = 1000; // considered not escaped if you make it this far
 						  //
 // 32 is square root of 1024, so we process a 1024px^2 area at a time
 const int THREAD_WIDTH = 32;
 const int THREAD_HEIGHT = 32;
 
-const int WIDTH = 1024;
-const int HEIGHT = 1024;
+const int WIDTH = 2048;
+const int HEIGHT = 2048;
 
 
 // Function prototypes
