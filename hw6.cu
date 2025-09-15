@@ -28,8 +28,8 @@ const int WIDTH = 1024;
 const int HEIGHT = 1024;
 const float X_LOWER_BOUND = -2; 
 const float X_UPPER_BOUND =  2;
-const float Y_LOWER_BOUND =  2;
-const float Y_UPPER_BOUND = -2;
+const float Y_LOWER_BOUND = -2;
+const float Y_UPPER_BOUND = 2;
 const float A =  -0.824;			//Real part of C
 const float B  = -0.1711;			//Imaginary part of C Global variables unsigned int 
 const int MAX_MAGNITUDE = 20;
@@ -129,17 +129,9 @@ int main(int argc, char** argv)
 	CHECK();
 	
 	*/
-
 	
-   	
-	
-	//Do all the processing on the GPU
-	
-	// destination, source, direction)
-	// display (pixels_CPU);
 	free(pixels_CPU);
 	cudaFree(pixels_GPU);
-	
 }
 
 // Unit Testing
@@ -309,7 +301,7 @@ __global__ void checkEscapeGPU(float* pixel_array)
 		if(getMagnitude(real_component, imaginary_component) > MAX_MAGNITUDE)
 		{
 			// if magnitude exceepds "escape velocity" we color the square red
-			pixel_array[color_index]   = 1.0;	
+			pixel_array[color_index]   = 0.0;	
 			pixel_array[color_index+1] = 0.0;	
 			pixel_array[color_index+1] = 0.0;	
 			return;
@@ -320,9 +312,9 @@ __global__ void checkEscapeGPU(float* pixel_array)
 	}
 
 	//If we make it through all the steps, color the square black
-	pixel_array[color_index]   = 0;	
-	pixel_array[color_index+1] = 0;	
-	pixel_array[color_index+1] = 0;	
+	pixel_array[color_index]   = 1.0;	
+	pixel_array[color_index+1] = 0.0;	
+	pixel_array[color_index+1] = 0.0;	
 }
 
 
