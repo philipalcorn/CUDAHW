@@ -4,7 +4,7 @@
 
 // Name: Phil Alcorn
 // Simple Julia CPU.
-// nvcc HW7.cu -o temp -lglut -lGL
+// nvcc hw7.cu -o temp -use_fast_math -lglut -lGL
 // glut and GL are openGL libraries.
 
 /*
@@ -42,9 +42,9 @@ const float B  = -0.1711;	//Imaginary part of C
 // PI and E are used to ensure we never see the same fractal twice.
 const float PI = 3.1415926535897932384626433832795028841971693993751;
 const float E = 2.7182818284590452353602874713526624977572470936999;
-const float FALLOFF_MIN = 0.6;
+const float FALLOFF_MIN = 0.7;
 const float FALLOFF_MAX = 0.86;
-const float FALLOFF_CURVE = 0.5;
+const float FALLOFF_CURVE = 0.7;
 
 /***** ***** CONSTANTS ***** *****/
 int WIDTH; // Still "constant" but they are assigned at program start
@@ -170,8 +170,13 @@ __global__ void colorFractal(	int width,
 	float red = getAnimationValue(255,9, 4, current_time, TIME_SCALE/4);
 	float green = getAnimationValue(90,255, 4, current_time, TIME_SCALE/4);
 	float blue =0; // No blue for halloween :(
-				   //
-	float falloff_factor = getAnimationValue(FALLOFF_MIN,FALLOFF_MAX,FALLOFF_CURVE, current_time, TIME_SCALE);
+				   
+	float falloff_factor = getAnimationValue(	FALLOFF_MIN,
+												FALLOFF_MAX,
+												FALLOFF_CURVE, 
+												current_time, 
+												TIME_SCALE);
+
 	// Pixel Coordinates come from the initial index
 	int pixel_x = blockIdx.x*blockDim.x + threadIdx.x;
 	int pixel_y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -195,7 +200,7 @@ __global__ void colorFractal(	int width,
 	float intensity =0;
 	while (count< MAX_ITERATIONS) 
 	{
-		intensity = 1.2*pow((float)count/(float)MAX_ITERATIONS, falloff_factor); //Max value is 1
+		intensity = (MAX_ITERATIONS/150)*pow((float)count/(float)MAX_ITERATIONS, falloff_factor); //Max value is 1
 		if(getMagnitude(real_component, imaginary_component) > MAX_MAGNITUDE)
 		{
 		
@@ -241,11 +246,11 @@ __device__ float getAnimationValue(	float min,
 	float amplitude = (max-min)/2;
 	float center = (max+min)/2;
 
-	return amplitude * sinf(time*timescale) *
+	return amplitude * __sinf(time*timescale) *
 		sqrt( 
 			(1+pow(parameter,2)) 
 			/ 
-			(1+pow(parameter*sinf(time*timescale), 2) 
+			(1+pow(parameter*__sinf(time*timescale), 2) 
 		))
 		+ center;
 }
