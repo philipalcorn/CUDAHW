@@ -90,7 +90,7 @@ int main(int argc, char** argv)
 	//argc is arg count, argv is arg vector
 	if(argc !=3) 
 	{
-		printf("Run the program like this: ./filename <width> <height>\n");
+		printf("Run the program like this: ./<filename> <width> <height>\n");
 		exit(1);
 	}
 	WIDTH = atoi(argv[1]);
