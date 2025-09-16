@@ -107,6 +107,8 @@ int main(int argc, char** argv)
 	WIDTH = atoi(argv[1]);
 	HEIGHT = atoi(argv[2]);
 
+	
+
 	// allocate space for our RGB values
 	pixels_CPU = (float*)malloc(WIDTH*HEIGHT*3*sizeof(float)); 
 	checkAllocation(pixels_CPU);
@@ -150,13 +152,13 @@ __global__ void colorFractal(	int width,
 { 
 	// This basically alternates our colors by putting them through a 
 	// modified sine wave. 
-	float A = getAnimationValue(re - Z_MOD_VALUE,
+	float A_local = getAnimationValue(re - Z_MOD_VALUE,
 								re + Z_MOD_VALUE,
 								1,
 								current_time,
 								TIME_SCALE / (20*E));
 
-	float B = getAnimationValue(im - Z_MOD_VALUE,
+	float B_local = getAnimationValue(im - Z_MOD_VALUE,
 								im + Z_MOD_VALUE,
 								1,
 								current_time,
@@ -183,9 +185,11 @@ __global__ void colorFractal(	int width,
 	
 	//we want to color everything red
 	int color_index = getPixelIndex(pixel_x, pixel_y, 0, width);
-	
 	real_component = getNumFromPX(pixel_x, width, X_LOWER_BOUND, X_UPPER_BOUND);
-	imaginary_component = getNumFromPX(pixel_y, height, Y_LOWER_BOUND, Y_UPPER_BOUND);
+	imaginary_component =((float)height/(float)width) *getNumFromPX(	pixel_y,
+										height, 
+										X_LOWER_BOUND, 
+										X_UPPER_BOUND);
 
 	int count = 0;
 	float intensity =0;
@@ -202,7 +206,7 @@ __global__ void colorFractal(	int width,
 			return;
 		}
 
-		step(&real_component, &imaginary_component, A, B);
+		step(&real_component, &imaginary_component, A_local, B_local);
 		count++;
 	}
 
