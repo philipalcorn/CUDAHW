@@ -1,11 +1,8 @@
 /****IMPORTANT*****/
 //To Run: ./temp {width} {height}
-
+// nvcc hw7.cu -o temp -use_fast_math -lglut -lGL
 
 // Name: Phil Alcorn
-// Simple Julia CPU.
-// nvcc hw7.cu -o temp -use_fast_math -lglut -lGL
-// glut and GL are openGL libraries.
 
 /*
  What to do:
@@ -36,15 +33,15 @@ long long start_time;
 /***** ***** ANIMATION PARAMETERS ***** *****/
 // Lower numbers give a tigher range of inputs to Julia
 const float Z_MOD_VALUE = 0.1; 
-const float TIME_SCALE = 0.0007; // Lower values are slower
+const float TIME_SCALE = 0.0015; // Lower values are slower
 const float A =  -0.824;	//Real part of C
 const float B  = -0.1711;	//Imaginary part of C 
 // PI and E are used to ensure we never see the same fractal twice.
 const float PI = 3.1415926535897932384626433832795028841971693993751;
 const float E = 2.7182818284590452353602874713526624977572470936999;
-const float FALLOFF_MIN = 0.7;
-const float FALLOFF_MAX = 0.86;
-const float FALLOFF_CURVE = 0.7;
+const float FALLOFF_MIN = 0.75;
+const float FALLOFF_MAX = 0.95;
+const float FALLOFF_CURVE = 1;
 
 /***** ***** CONSTANTS ***** *****/
 int WIDTH; // Still "constant" but they are assigned at program start
@@ -283,17 +280,17 @@ void timer (int value)
                                       time_elapsed,
                                       TIME_SCALE / (20*PI));
 
-	// Orange color: 255, 90, 0
+	// Orange color: 255, 120, 0
 	// Green color: 9, 255, 0
 	float red = getAnimationValue(255,20, 6, time_elapsed, TIME_SCALE/2);
-	float green = getAnimationValue(100,220, 6, time_elapsed, TIME_SCALE/2);
+	float green = getAnimationValue(120,220, 6, time_elapsed, TIME_SCALE/2);
 	float blue =0; // No blue for halloween :(
 				   //
 	float falloff_factor = getAnimationValue(	FALLOFF_MIN,
 												FALLOFF_MAX,
 												FALLOFF_CURVE, 
 												time_elapsed, 
-												TIME_SCALE);
+												TIME_SCALE*2);
 
 			   //
 	generateLUT(lut_CPU, falloff_factor);
@@ -360,4 +357,3 @@ void checkAllocation(void* ptr)
 		exit(1);
 	}
 }
-
