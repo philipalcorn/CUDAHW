@@ -39,7 +39,7 @@ const float B  = -0.1711;	//Imaginary part of C
 // PI and E are used to ensure we never see the same fractal twice.
 const float PI = 3.1415926535897932384626433832795028841971693993751;
 const float E = 2.7182818284590452353602874713526624977572470936999;
-const float FALLOFF_MIN = 0.75;
+const float FALLOFF_MIN = 0.85;
 const float FALLOFF_MAX = 0.95;
 const float FALLOFF_CURVE = 1;
 
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
 	glutDisplayFunc(display);
 
 	start_time = get_current_time_ms();
-	glutTimerFunc(16,timer,0);
+	glutTimerFunc(6.25,timer,0);
 
 	glutMainLoop();
 
@@ -272,7 +272,7 @@ void timer (int value)
                                       A + Z_MOD_VALUE,
                                       1,
                                       time_elapsed,
-                                      TIME_SCALE / (20*E));
+                                      TIME_SCALE / (5*E));
 
 	float B_local = getAnimationValue(B - Z_MOD_VALUE,
                                       B + Z_MOD_VALUE,
@@ -283,7 +283,7 @@ void timer (int value)
 	// Orange color: 255, 120, 0
 	// Green color: 9, 255, 0
 	float red = getAnimationValue(255,20, 6, time_elapsed, TIME_SCALE/2);
-	float green = getAnimationValue(120,220, 6, time_elapsed, TIME_SCALE/2);
+	float green = getAnimationValue(0,220, 6, time_elapsed, TIME_SCALE/2);
 	float blue =0; // No blue for halloween :(
 				   //
 	float falloff_factor = getAnimationValue(	FALLOFF_MIN,
