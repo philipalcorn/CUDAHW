@@ -33,16 +33,107 @@ void cudaErrorCheck(const char *, int);
 void setUpDevices();
 void allocateMemory();
 void innitialize();
-void dotProductCPU(float*, float*, int);
+void dotProductCPU(float*, float*, float*, int);
 __global__ void dotProductGPU(float*, float*, float*, int);
 bool  check(float, float, float);
 long elaspedTime(struct timeval, struct timeval);
-void cleanUp();
+void CleanUp();
 int next_power_of_2(unsigned int n);
 __device__ int __next_power_of_2(unsigned int n);
 
-// This check to see if an error happened in your CUDA code. It tell you what it thinks went wrong,
-// and what file and line it occured on.
+
+int main()
+{
+	timeval start, end;
+	long timeCPU, timeGPU;
+	//float localC_CPU, localC_GPU;
+	
+	// Setting up the GPU
+	setUpDevices();
+	
+	// Allocating the memory you will need.
+	allocateMemory();
+	
+	// Putting values in the vectors.
+	innitialize();
+	
+	// Adding on the CPU
+	gettimeofday(&start, NULL);
+	dotProductCPU(A_CPU, B_CPU, C_CPU, N);
+	DotCPU = C_CPU[0];
+	gettimeofday(&end, NULL);
+	timeCPU = elaspedTime(start, end);
+	printf("CPU TOTAL: %f\n",C_CPU[0]); 
+
+	/*
+	if(BlockSize.x < N)
+	{
+		printf("\n\n Your vector size is larger than the block size.");
+		printf("\n Because we are only using one block this will not work.");
+		printf("\n Good Bye.\n\n");
+		exit(0);
+	}
+	*/
+	
+	// Adding on the GPU
+	gettimeofday(&start, NULL);
+	
+	// Copy Memory from CPU to GPU		
+	cudaMemcpy(A_GPU, A_CPU, N*sizeof(float), cudaMemcpyHostToDevice);
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMemcpy(B_GPU, B_CPU, N*sizeof(float), cudaMemcpyHostToDevice);
+	cudaErrorCheck(__FILE__, __LINE__);
+	
+	dotProductGPU<<<GridSize,
+					BlockSize, 
+					next_power_of_2(BlockSize.x)*sizeof(float)>>>
+					(A_GPU, B_GPU, temp_sums_GPU, N);
+	cudaErrorCheck(__FILE__, __LINE__);
+	
+	// Copy Memory from GPU to CPU	
+	cudaMemcpy(temp_sums_CPU, temp_sums_GPU, 
+					((N-1)/BlockSize.x + 1 )*sizeof(float), 
+					cudaMemcpyDeviceToHost);
+	cudaErrorCheck(__FILE__, __LINE__);
+
+	float total =0;
+	for (int i = 0; i < GridSize.x; i++ ) 
+	{
+		total += temp_sums_CPU[i];
+	}
+
+	DotGPU = total; // C_GPU was copied into C_CPU.
+	
+	// Making sure the GPU and CPU wiat until each other are at the same place.
+	cudaDeviceSynchronize();
+	cudaErrorCheck(__FILE__, __LINE__);
+
+	gettimeofday(&end, NULL);
+	timeGPU = elaspedTime(start, end);
+	
+	printf("GPU TOTAL: %f\n", total);
+	// Checking to see if all went correctly.
+	if(check(DotCPU, DotGPU, Tolerance) == false)
+	{
+		printf("\n\n Something went wrong in the GPU dot product.\n");
+	}
+	else
+	{
+		printf("\n\n You did a dot product correctly on the GPU");
+		printf("\n The time it took on the CPU was %ld microseconds", timeCPU);
+		printf("\n The time it took on the GPU was %ld microseconds", timeGPU);
+	}
+	
+	// Your done so cleanup your room.	
+	CleanUp();	
+	
+	// Making sure it flushes out anything in the print buffer.
+	printf("\n\n");
+	
+	return(0);
+}
+
+
 void cudaErrorCheck(const char *file, int line)
 {
 	cudaError_t  error;
@@ -212,96 +303,6 @@ void CleanUp()
 	cudaErrorCheck(__FILE__, __LINE__);
 }
 
-int main()
-{
-	timeval start, end;
-	long timeCPU, timeGPU;
-	//float localC_CPU, localC_GPU;
-	
-	// Setting up the GPU
-	setUpDevices();
-	
-	// Allocating the memory you will need.
-	allocateMemory();
-	
-	// Putting values in the vectors.
-	innitialize();
-	
-	// Adding on the CPU
-	gettimeofday(&start, NULL);
-	dotProductCPU(A_CPU, B_CPU, C_CPU, N);
-	DotCPU = C_CPU[0];
-	gettimeofday(&end, NULL);
-	timeCPU = elaspedTime(start, end);
-	printf("CPU TOTAL: %f\n",C_CPU[0]); 
-
-	/*
-	if(BlockSize.x < N)
-	{
-		printf("\n\n Your vector size is larger than the block size.");
-		printf("\n Because we are only using one block this will not work.");
-		printf("\n Good Bye.\n\n");
-		exit(0);
-	}
-	*/
-	
-	// Adding on the GPU
-	gettimeofday(&start, NULL);
-	
-	// Copy Memory from CPU to GPU		
-	cudaMemcpy(A_GPU, A_CPU, N*sizeof(float), cudaMemcpyHostToDevice);
-	cudaErrorCheck(__FILE__, __LINE__);
-	cudaMemcpy(B_GPU, B_CPU, N*sizeof(float), cudaMemcpyHostToDevice);
-	cudaErrorCheck(__FILE__, __LINE__);
-	
-	dotProductGPU<<<GridSize,
-					BlockSize, 
-					next_power_of_2(BlockSize.x)*sizeof(float)>>>
-					(A_GPU, B_GPU, temp_sums_GPU, N);
-	cudaErrorCheck(__FILE__, __LINE__);
-	
-	// Copy Memory from GPU to CPU	
-	cudaMemcpy(temp_sums_CPU, temp_sums_GPU, 
-					((N-1)/BlockSize.x + 1 )*sizeof(float), 
-					cudaMemcpyDeviceToHost);
-	cudaErrorCheck(__FILE__, __LINE__);
-
-	float total =0;
-	for (int i = 0; i < GridSize.x; i++ ) 
-	{
-		total += temp_sums_CPU[i];
-	}
-
-	DotGPU = total; // C_GPU was copied into C_CPU.
-	
-	// Making sure the GPU and CPU wiat until each other are at the same place.
-	cudaDeviceSynchronize();
-	cudaErrorCheck(__FILE__, __LINE__);
-
-	gettimeofday(&end, NULL);
-	timeGPU = elaspedTime(start, end);
-	
-	printf("GPU TOTAL: %f\n", total);
-	// Checking to see if all went correctly.
-	if(check(DotCPU, DotGPU, Tolerance) == false)
-	{
-		printf("\n\n Something went wrong in the GPU dot product.\n");
-	}
-	else
-	{
-		printf("\n\n You did a dot product correctly on the GPU");
-		printf("\n The time it took on the CPU was %ld microseconds", timeCPU);
-		printf("\n The time it took on the GPU was %ld microseconds", timeGPU);
-	}
-	
-	// Your done so cleanup your room.	
-	CleanUp();	
-	
-	// Making sure it flushes out anything in the print buffer.
-	printf("\n\n");
-	
-	return(0);
-}
 
 
 int next_power_of_2(unsigned int n) 
