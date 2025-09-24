@@ -119,26 +119,33 @@ __global__ void dotProductGPU(float *a, float *b, float* temp_sums_GPU, int n)
 	int gid = blockDim.x*blockIdx.x + threadIdx.x;
 	int lid = threadIdx.x;
 	
-
+	//initialize temp to 0 (We know temp has a size of npo2 (blockDim.x)
+	int midpoint = __next_power_of_2(blockDim.x) / 2;
+	if (lid<midpoint) 
+	{
+		temp[lid] = 0;
+		temp[lid+midpoint] = 0;
+	}
+	//if (lid < 56) 
+	//{
+		//temp[blockDim.x + lid] = 0;
+	//}
+	
 	// Multiplication:	
 	// We are setting temp to be the size of the next power of 2 from N
 	// However we only have threads going up to size N. So only the first N
 	// indices need to be assigned as the rest are padded to 0 for the
 	// reduction algorithm.
 	
-	if (blockDim.x && gid < n) 
+	if (gid < n) 
 	{
 		temp[lid] = a[gid] * b[gid]; // Doing the multiplication
-	}
-	else 
-	{
-		temp [lid] = 0; 
 	}
 	__syncthreads();
 
 	// Reduction:
 	// Reduction logic 0is local, so it can use the threadIdx.x.
-	int len = __next_power_of_2(blockDim.x); // Largest power of 2 to avoid integer division issues
+	int len = __next_power_of_2(blockDim.x)  ; // Largest power of 2 to avoid integer division issues
 	while (len > 1)
 	{
 		if (lid< len/2)  { 
@@ -247,7 +254,10 @@ int main()
 	cudaMemcpy(B_GPU, B_CPU, N*sizeof(float), cudaMemcpyHostToDevice);
 	cudaErrorCheck(__FILE__, __LINE__);
 	
-	dotProductGPU<<<GridSize,BlockSize, next_power_of_2(BlockSize.x)*sizeof(float)>>>(A_GPU, B_GPU, temp_sums_GPU, N);
+	dotProductGPU<<<GridSize,
+					BlockSize, 
+					next_power_of_2(BlockSize.x)*sizeof(float)>>>
+					(A_GPU, B_GPU, temp_sums_GPU, N);
 	cudaErrorCheck(__FILE__, __LINE__);
 	
 	// Copy Memory from GPU to CPU	
