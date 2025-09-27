@@ -342,7 +342,7 @@ int check_if_power_of_two(int number)
 
 void check_size_limits(cudaDeviceProp* prop) 
 {
-	if (BlockSize.x > prop->maxThreadsDim[0] || BlockSize.y > prop->maxThreadsDim[1] || BlockSize.z > prop->maxThreadsDim[2] ) 
+if (BlockSize.x > prop->maxThreadsDim[0] || BlockSize.y > prop->maxThreadsDim[1] || BlockSize.z > prop->maxThreadsDim[2] ) 
 	{
 		printf("You have too many threads per block. Please reduce your thread count"
 				" and try again.\n");
@@ -396,7 +396,11 @@ int get_best_gpu()
 		printf("You need a GPU with version 3.0 to run this code.");
 		exit(1);
 	}
-		
+	
+	if (best_device == -1) 
+	{
+		return 0;
+	}
 	return best_device;
 }
 
