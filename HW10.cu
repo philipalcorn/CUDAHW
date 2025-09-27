@@ -10,22 +10,26 @@
  1. Make sure the number of threads on a block are a power of 2 so we don't have to see if the fold is going to be
     even. Because if it is not even we had to add the last element to the first reduce the fold by 1 and then fold. 
     If it is not even tell your client what is wrong and exit.
+	// DONE
  2. Find the right number of blocks to finish the job. But, it is possible that the grid demention is too big. I know
     it is a large number but it is finite. So use device properties to see if the grid is too big for the machine 
     you are on and while you are at it make sure the blocks are not to big too. Maybe you wrote the code on a new GPU 
     but your client is using an old GPU. Check both and if either is out of bound report it to your client then kindly
     exit the program.
+	// DONE 
  3. Always checking to see if you have threads working past your vector is a real pain and adds a bunch of time consumming
     if statments to your GPU code. To get around this findout how much you would have to add to your vector to make it 
     perfectly fit in your block and grid layout and pad it with zeros. Multipying zeros and adding zero do nothing to a 
     dot product. If you were luck on HW8 you kind of did this but you just got lucky because most of the time the GPU sets
     everything to zero at start up. But!!!, you don't want to put code out where you are just lucky soooo do a cudaMemset
-    so you know everything is zero. Then copy up the now zero values.
+    so you know everything is zero. Then copy up the now zero values. 
+	// DONE
  4. In HW9 we had to do the final add "reduction' on the CPU because we can't sync block. Use atomic add to get around 
     this and finish the job on the GPU. Also you will have to copy this final value down to the CPU with a cudaMemCopy.
     But!!! We are working with floats and atomics with floats can only be done on GPUs with major compute capability 3 
     or higher. Use device properties to check if this is true. And, while you are at it check to see if you have more
     than 1 GPU and if you do select the best GPU based on compute capablity.
+	// DONE
  5. Add any additional bells and whistles to the code that you thing would make the code better and more foolproof.
 */
 
