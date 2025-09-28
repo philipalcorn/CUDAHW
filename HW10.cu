@@ -357,19 +357,28 @@ if (BlockSize.x > prop->maxThreadsDim[0] || BlockSize.y > prop->maxThreadsDim[1]
 	}
 }
 
+
+// Assumes that the operations are compute bound instead of memory bound. 
+// As a result, it will select the GPU with the higher compute cores 
+// and not the GPU with the highest VRAM. Easy to swap around if desired. 
 int get_best_gpu() 
 {
 	cudaDeviceProp p;	
 	int device_count;
 	cudaGetDeviceCount(&device_count);
-	
+	cudaErrorCheck(__FILE__, __LINE__);
+
 	int best_device =-1;
-	int best_major, best_minor, best_mp_count = -1;
+	int best_major = -1;
+	int best_minor = -1;
+	int best_mp_count = -1;
 	int has_valid_gpu = 0;
 	  
 	for (int i = 0; i < device_count; i++) 
 	{
 		cudaGetDeviceProperties(&p, i);
+	cudaErrorCheck(__FILE__, __LINE__);
+
 
 		printf("\nDevice %d: %s (CC %d.%d, %d SMs, %.1f GB global mem)\n",
 				i, p.name, p.major, p.minor, p.multiProcessorCount,
@@ -397,6 +406,7 @@ int get_best_gpu()
 		exit(1);
 	}
 	
+	// Might need work but will have to wait until I can work on it on Campus
 	if (best_device == -1) 
 	{
 		return 0;
