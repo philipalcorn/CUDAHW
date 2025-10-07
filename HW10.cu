@@ -399,6 +399,7 @@ int get_best_gpu()
 			}
 		}
 	}
+
 	printf("\n\n");
 	if (!has_valid_gpu) 
 	{

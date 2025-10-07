@@ -23,7 +23,8 @@ float *A_CPU, *B_CPU, *C_CPU; //CPU pointers
 float *A_GPU, *B_GPU, *C_GPU; //GPU pointers
 float* temp_sums_GPU;
 float* temp_sums_CPU;
-float DotCPU, DotGPU;
+float DotCPU = 0;
+float DotGPU =0;
 dim3 BlockSize; //This variable will hold the Dimensions of your blocks
 dim3 GridSize; //This variable will hold the Dimensions of your grid
 float Tolerance = 0.01;
@@ -37,7 +38,7 @@ void dotProductCPU(float*, float*, float*, int);
 __global__ void dotProductGPU(float*, float*, float*, int);
 bool  check(float, float, float);
 long elaspedTime(struct timeval, struct timeval);
-void CleanUp();
+void cleanUp();
 int next_power_of_2(unsigned int n);
 __device__ int __next_power_of_2(unsigned int n);
 
@@ -65,16 +66,6 @@ int main()
 	timeCPU = elaspedTime(start, end);
 	printf("CPU TOTAL: %f\n",C_CPU[0]); 
 
-	/*
-	if(BlockSize.x < N)
-	{
-		printf("\n\n Your vector size is larger than the block size.");
-		printf("\n Because we are only using one block this will not work.");
-		printf("\n Good Bye.\n\n");
-		exit(0);
-	}
-	*/
-	
 	// Adding on the GPU
 	gettimeofday(&start, NULL);
 	
@@ -125,7 +116,7 @@ int main()
 	}
 	
 	// Your done so cleanup your room.	
-	CleanUp();	
+	cleanUp();	
 	
 	// Making sure it flushes out anything in the print buffer.
 	printf("\n\n");
@@ -206,7 +197,7 @@ void dotProductCPU(float *a, float *b, float *C_CPU, int n)
 
 __global__ void dotProductGPU(float *a, float *b, float* temp_sums_GPU, int n)
 {
-	extern __shared__ float temp[];
+	extern	__shared__ float temp[];
 	int gid = blockDim.x*blockIdx.x + threadIdx.x;
 	int lid = threadIdx.x;
 	
@@ -285,7 +276,7 @@ long elaspedTime(struct timeval start, struct timeval end)
 }
 
 // Cleaning up memory after we are finished.
-void CleanUp()
+void cleanUp()
 {
 	// Freeing host "CPU" memory.
 	free(A_CPU); 
