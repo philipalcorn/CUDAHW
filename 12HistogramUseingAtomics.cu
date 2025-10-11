@@ -1,4 +1,4 @@
-// Name:
+// Name: Phil Alcorn
 // Histogram useing atomics in global memory and shared memory.
 // nvcc 12HistogramUseingAtomics.cu -o temp
 
@@ -44,6 +44,8 @@ int *HistogramCPUTemp; // Use it to hod the GPU histogram past back so we can co
 dim3 BlockSize; //This variable will hold the Dimensions of your block
 dim3 GridSize; //This variable will hold the Dimensions of your grid
 
+cudaDeviceProp prop;
+
 //Function prototypes
 void cudaErrorCheck(const char *, int);
 void SetUpCudaDevices();
@@ -71,25 +73,22 @@ void cudaErrorCheck(const char *file, int line)
 //This will be the layout of the parallel space we will be using.
 void SetUpCudaDevices()
 {
-	cudaDeviceProp prop;
 	cudaGetDeviceProperties(&prop, 0);
 	cudaErrorCheck(__FILE__, __LINE__);
 	
-	BlockSize.x = 222;
-	if(prop.maxThreadsDim[0] < BlockSize.x)
-	{
-		printf("\n You are trying to create more threads (%d) than your GPU can support on a block (%d).\n Good Bye\n", BlockSize.x, prop.maxThreadsDim[0]);
-		exit(0);
-	}
+	BlockSize.x = prop.maxThreadDim[0];
 	BlockSize.y = 1;
 	BlockSize.z = 1;
-	
-	GridSize.x = (NUMBER_OF_RANDOM_NUMBERS - 1)/BlockSize.x + 1; //Makes enough blocks to deal with the whole vector.
-	if(prop.maxGridSize[0] < GridSize.x)
-	{
-		printf("\n You are trying to create more blocks (%d) than your GPU can suppport (%d).\n Good Bye\n", GridSize.x, prop.maxGridSize[0]);
-		exit(0);
-	}
+
+
+	// Each multiprocessor handles one block at a time, regardless of the thread
+	// count. However, if we make the number of blocks twice as big as the 
+	// number of SMs, then our GPU scheduler has some more flexibility. 
+	// It can limit how many blocks are waiting on memory and therefore speed
+	// up throughput. That is, as soon as one block is finished accessing the
+	// memory, then there is another block that's already fetched its memory
+	// and is ready to go.
+	GridSize.x = 2*prop.multiProcessorCount;
 	GridSize.y = 1;
 	GridSize.z = 1;
 }
@@ -126,6 +125,7 @@ void Innitialize()
 	{		
 		RandomNumbersCPU[i] = MAX_RANDOM_NUMBER*(float)rand()/RAND_MAX;	
 	}
+
 }
 
 //Cleaning up memory after we are finished.
@@ -174,7 +174,44 @@ void fillHistogramCPU()
 //This is the kernel. It is the function that will run on the GPU.
 __global__ void fillHistogramGPU(float *randomNumbers, int *hist)
 {
+
+	__shared__ unsigned int local_histogram[NUMBER_OF_BINS];
+
+	int gid = threadIdx.x + blockDim.x * blockIdx.x;	
+	int lid = threadIdx.x;
+	int total_threads = gridDim.x*blockDim.x;
+
+	// Initialize local hist to 0
+	for (int i = lid; i < NUMBER_OF_BINS; i+= blockDim.x) 
+	{
+		localHist[i] = 0;
+	}
+
+	__syncthreads();
+
+	// Looping through all elements in case our vector is larger than 
+	// our number of elements. 
+	for (int i = gid; i<NUMBER_OF_RANDOM_NUMBERS; i += total_threads)
+	{
+		// Scale the number to [0,1) then multiply by number of bins, 
+		// mapping our number to [0, NUMBER_OF_BINS). Casting to int then
+		// gets the right bin.
+		int bin = (int) ((RandomNumbersGPU[i] / MAX_RANDOM_NUMBER) * NUMBER_OF_BINS);
+		
+		// Safeguard against exceeding bin count (shouldn't ever happen)
+		if (bin>= NUMBER_OF_BINS) bin = NUMBER_OF_BINS-1; 
+
+		// Add one to the corresponding bin.
+		atomicAdd(&local_histogram[bin], 1);
+	}
 	
+
+	// Add them to the global histogram upon completion
+	for (int i = lid; i < NUMBER_OF_BINS; i += blockDim.x) 
+	{
+		atomicAdd (HistogramGPU[i], localHist[i]);
+	}
+
 }
 
 int main()
