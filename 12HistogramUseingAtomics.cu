@@ -50,7 +50,7 @@ cudaDeviceProp prop;
 void cudaErrorCheck(const char *, int);
 void SetUpCudaDevices();
 void AllocateMemory();
-void Innitialize();
+void Initialize();
 void CleanUp();
 void fillHistogramCPU();
 __global__ void fillHistogramGPU(float *, int *);
@@ -76,7 +76,7 @@ void SetUpCudaDevices()
 	cudaGetDeviceProperties(&prop, 0);
 	cudaErrorCheck(__FILE__, __LINE__);
 	
-	BlockSize.x = prop.maxThreadDim[0];
+	BlockSize.x = prop.maxThreadsDim[0];
 	BlockSize.y = 1;
 	BlockSize.z = 1;
 
@@ -114,7 +114,7 @@ void AllocateMemory()
 }
 
 //Loading random numbers.
-void Innitialize()
+void Initialize()
 {
 	time_t t;
 	srand((unsigned) time(&t));
@@ -175,7 +175,7 @@ void fillHistogramCPU()
 __global__ void fillHistogramGPU(float *randomNumbers, int *hist)
 {
 
-	__shared__ unsigned int local_histogram[NUMBER_OF_BINS];
+	__shared__ int local_histogram[NUMBER_OF_BINS];
 
 	int gid = threadIdx.x + blockDim.x * blockIdx.x;	
 	int lid = threadIdx.x;
@@ -184,7 +184,7 @@ __global__ void fillHistogramGPU(float *randomNumbers, int *hist)
 	// Initialize local hist to 0
 	for (int i = lid; i < NUMBER_OF_BINS; i+= blockDim.x) 
 	{
-		localHist[i] = 0;
+		local_histogram[i] = 0;
 	}
 
 	__syncthreads();
@@ -196,7 +196,7 @@ __global__ void fillHistogramGPU(float *randomNumbers, int *hist)
 		// Scale the number to [0,1) then multiply by number of bins, 
 		// mapping our number to [0, NUMBER_OF_BINS). Casting to int then
 		// gets the right bin.
-		int bin = (int) ((RandomNumbersGPU[i] / MAX_RANDOM_NUMBER) * NUMBER_OF_BINS);
+		int bin = (int) ((randomNumbers[i] / MAX_RANDOM_NUMBER) * NUMBER_OF_BINS);
 		
 		// Safeguard against exceeding bin count (shouldn't ever happen)
 		if (bin>= NUMBER_OF_BINS) bin = NUMBER_OF_BINS-1; 
@@ -204,12 +204,12 @@ __global__ void fillHistogramGPU(float *randomNumbers, int *hist)
 		// Add one to the corresponding bin.
 		atomicAdd(&local_histogram[bin], 1);
 	}
-	
+	__syncthreads();	
 
 	// Add them to the global histogram upon completion
 	for (int i = lid; i < NUMBER_OF_BINS; i += blockDim.x) 
 	{
-		atomicAdd (HistogramGPU[i], localHist[i]);
+		atomicAdd(&hist[i], local_histogram[i]);
 	}
 
 }
@@ -234,7 +234,7 @@ int main()
 	AllocateMemory();
 
 	//Loading up values to be added.
-	Innitialize();
+	Initialize();
 	
 	gettimeofday(&start, NULL);
 	fillHistogramCPU();
@@ -251,6 +251,7 @@ int main()
 	//Copy Memory from GPU to CPU	
 	cudaMemcpyAsync(HistogramCPUTemp, HistogramGPU, NUMBER_OF_BINS*sizeof(int), cudaMemcpyDeviceToHost);
 	cudaErrorCheck(__FILE__, __LINE__);
+	cudaDeviceSynchronize(); // Added this for accurate timing
 	gettimeofday(&end, NULL);
 	time = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
 	printf("\nTime on GPU = %.15f milliseconds\n", (time/1000.0));
@@ -258,7 +259,7 @@ int main()
 	//Check
 	for(int i = 0; i < NUMBER_OF_BINS; i++)
 	{
-		printf("\n Deference in histogram bins %d is %d.", i, abs(HistogramCPUTemp[i] - HistogramCPU[i]));
+		printf("\n Difference in histogram bins %d is %d.", i, abs(HistogramCPUTemp[i] - HistogramCPU[i]));
 	}
 	
 	//You're done so cleanup your mess.
