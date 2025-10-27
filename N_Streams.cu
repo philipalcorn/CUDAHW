@@ -29,7 +29,6 @@ float *NumbersOnGPU, *PageableNumbersOnCPU, *PageLockedNumbersOnCPU;
 float *A_CPU, *B_CPU, *C_CPU; //CPU pointers
 float *A_GPU, *B_GPU, *C_GPU; //GPU pointers
 cudaEvent_t StartEvent, StopEvent;
-cudaSteam_t Stream0;	
 // ??? Notice that we have to define a stream
 cudaStream_t Stream0;
 
