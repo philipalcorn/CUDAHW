@@ -29,7 +29,7 @@
 
 // Defines
 #define PI 3.14159265359
-#define DRAW_RATE 10
+#define DRAW_RATE 30
 
 // This is to create a Lennard-Jones type function G/(r^p) - H(r^q). 
 // (p < q) p has to be less than q.
@@ -44,7 +44,7 @@
 #define LJQ  4.0
 
 #define DT 0.0001
-#define RUN_TIME 1.0
+#define RUN_TIME 20.0
 
 // Globals
 int N, DrawFlag;
@@ -305,7 +305,7 @@ void setup()
 	F = (float3*)malloc(N*sizeof(float3));
 	
 	Diameter = pow(H/G, 1.0/(LJQ - LJP)); // This is the value where the 
-										  // force is zero for the L-J type force.
+						// force is zero for the L-J type force.
 	Radius = Diameter/2.0;
 	
 	// Using the radius of a body and a 68% packing ratio to find the 
@@ -315,7 +315,7 @@ void setup()
 	float totalVolume = float(N)*(4.0/3.0)*PI*Radius*Radius*Radius;
 	totalVolume /= 0.68;
 	float totalRadius = pow(3.0*totalVolume/(4.0*PI), 1.0/3.0);
-	GlobeRadius = 2.0*totalRadius;
+	GlobeRadius = 5.0*totalRadius;
 	
 	// Randomly setting these bodies in the glaobal sphere and setting the 
 	// initial velosity, inotial force, and mass.
@@ -430,7 +430,6 @@ void nBody()
 		
 		time += dt;
 		drawCount++;
-		printf("time: %f\n", time);
 	}
 	cudaMemcpy(P, PGPU, N*sizeof(float3), cudaMemcpyDeviceToHost);
 	cudaErrorCheck(__FILE__, __LINE__);
