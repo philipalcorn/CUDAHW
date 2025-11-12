@@ -430,6 +430,7 @@ void nBody()
 		
 		time += dt;
 		drawCount++;
+		printf("time: %f\n", time);
 	}
 	cudaMemcpy(P, PGPU, N*sizeof(float3), cudaMemcpyDeviceToHost);
 	cudaErrorCheck(__FILE__, __LINE__);
