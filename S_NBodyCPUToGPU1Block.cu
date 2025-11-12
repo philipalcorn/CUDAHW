@@ -300,12 +300,9 @@ void setup()
 	Damp = 0.5f;
 	
 	M = (float*)malloc(N*sizeof(float));
-    cudaMallocHost(&P, N*sizeof(float3));	
-	cudaErrorCheck(__FILE__, __LINE__);
-    cudaMallocHost(&V, N*sizeof(float3));	
-	cudaErrorCheck(__FILE__, __LINE__);
-    cudaMallocHost(&F, N*sizeof(float3));	
-	cudaErrorCheck(__FILE__, __LINE__);
+	P = (float3*)malloc(N*sizeof(float3));
+	V = (float3*)malloc(N*sizeof(float3));
+	F = (float3*)malloc(N*sizeof(float3));
 	
 	Diameter = pow(H/G, 1.0/(LJQ - LJP)); // This is the value where the 
 										  // force is zero for the L-J type force.
