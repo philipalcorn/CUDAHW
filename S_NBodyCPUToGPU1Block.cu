@@ -301,8 +301,11 @@ void setup()
 	
 	M = (float*)malloc(N*sizeof(float));
     cudaMallocHost(&P, N*sizeof(float3));	
+	cudaErrorCheck(__FILE__, __LINE__);
     cudaMallocHost(&V, N*sizeof(float3));	
+	cudaErrorCheck(__FILE__, __LINE__);
     cudaMallocHost(&F, N*sizeof(float3));	
+	cudaErrorCheck(__FILE__, __LINE__);
 	
 	Diameter = pow(H/G, 1.0/(LJQ - LJP)); // This is the value where the 
 										  // force is zero for the L-J type force.
@@ -317,7 +320,8 @@ void setup()
 	float totalRadius = pow(3.0*totalVolume/(4.0*PI), 1.0/3.0);
 	GlobeRadius = 2.0*totalRadius;
 	
-	// Randomly setting these bodies in the glaobal sphere and setting the initial velosity, inotial force, and mass.
+	// Randomly setting these bodies in the glaobal sphere and setting the 
+	// initial velosity, inotial force, and mass.
 	for(int i = 0; i < N; i++)
 	{
 		test = 0;
@@ -358,17 +362,26 @@ void setup()
 		
 		M[i] = 1.0;
 
-		// Malloc Device arrays, copy data over
-		cudaMalloc(&PGPU, N*sizeof(float3));
-		cudaMalloc(&VGPU, N*sizeof(float3));
-		cudaMalloc(&FGPU, N*sizeof(float3));
-		cudaMalloc(&MGPU, N*sizeof(float));
+		}
+	// Malloc Device arrays, copy data over
+	cudaMalloc(&PGPU, N*sizeof(float3));
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMalloc(&VGPU, N*sizeof(float3));
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMalloc(&FGPU, N*sizeof(float3));
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMalloc(&MGPU, N*sizeof(float));
+	cudaErrorCheck(__FILE__, __LINE__);
 
-		cudaMemcpy(PGPU, P, N * sizeof(float3), cudaMemcpyHostToDevice);
-		cudaMemcpy(VGPU, V, N * sizeof(float3), cudaMemcpyHostToDevice);
-		cudaMemcpy(FGPU, F, N * sizeof(float3), cudaMemcpyHostToDevice);
-		cudaMemcpy(MGPU, M, N * sizeof(float), cudaMemcpyHostToDevice);
-	}
+	cudaMemcpy(PGPU, P, N * sizeof(float3), cudaMemcpyHostToDevice);
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMemcpy(VGPU, V, N * sizeof(float3), cudaMemcpyHostToDevice);
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMemcpy(FGPU, F, N * sizeof(float3), cudaMemcpyHostToDevice);
+	cudaErrorCheck(__FILE__, __LINE__);
+	cudaMemcpy(MGPU, M, N * sizeof(float), cudaMemcpyHostToDevice);
+	cudaErrorCheck(__FILE__, __LINE__);
+
 	printf("\n To start timing type s.\n");
 }
 
@@ -379,11 +392,11 @@ void nBody()
 	float dt = DT;
 	
 	dim3 gridSize, blockSize;
-	gridSize.x = 1024;
+	gridSize.x = 1;
 	gridSize.y = 1;
 	gridSize.z = 1;
 
-	blockSize.x = 1;
+	blockSize.x = 1024;
 	blockSize.y = 1;
 	blockSize.z = 1;
 
@@ -392,10 +405,19 @@ void nBody()
 	while(time < RUN_TIME)
 	{
 		zero_forces<<<gridSize, blockSize>>>(FGPU, N);
+		cudaErrorCheck(__FILE__,__LINE__);
+		cudaDeviceSynchronize();
 
 		calculate_forces<<<gridSize, blockSize>>>(PGPU, MGPU, FGPU, N);
+		cudaErrorCheck(__FILE__,__LINE__);
+		cudaDeviceSynchronize();
+
 
 		step<<<gridSize, blockSize>>>(PGPU, VGPU, FGPU, MGPU, dt, Damp, N, firstStep);
+		cudaErrorCheck(__FILE__,__LINE__);
+		cudaDeviceSynchronize();
+
+
 		firstStep=0;
 
 		if(drawCount == DRAW_RATE) 
@@ -403,6 +425,7 @@ void nBody()
 			if(DrawFlag) 
 			{
 				cudaMemcpy(P, PGPU, N*sizeof(float3), cudaMemcpyDeviceToHost);
+				cudaErrorCheck(__FILE__, __LINE__);
 				drawPicture();
 			}
 			drawCount = 0;
@@ -412,6 +435,7 @@ void nBody()
 		drawCount++;
 	}
 	cudaMemcpy(P, PGPU, N*sizeof(float3), cudaMemcpyDeviceToHost);
+	cudaErrorCheck(__FILE__, __LINE__);
 }
 
 
