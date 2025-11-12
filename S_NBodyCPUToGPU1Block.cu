@@ -44,7 +44,7 @@
 #define LJQ  4.0
 
 #define DT 0.0001
-#define RUN_TIME 20.0
+#define RUN_TIME 1.0
 
 // Globals
 int N, DrawFlag;
