@@ -1,4 +1,4 @@
-// Name: Phil Alcorn	
+// Name:
 // GPU random walk. 
 // nvcc 16GPURandomWalk.cu -o temp
 
@@ -6,8 +6,9 @@
  What to do:
  This code runs a random walk for 10,000 steps on the CPU.
 
- 1. Use cuRAND to run 20 random walks simultaneously on the GPU, each with a different seed.
-    Print out all 20 final positions.
+ 1. Use cuRAND to run 2,000 random walks of 10,000 steps simultaneously on the GPU, each with a different seed.
+    Print the final positions of random walks 5, 100, 789, and 1622 as a spot check to get a warm 
+    fuzzy feeling that your code is producing different random walks for each thread.
 
  2. Use cudaMallocManaged(&variable, amount_of_memory_needed);
     This allocates unified memory, which is automatically managed between the CPU and GPU.
@@ -37,74 +38,44 @@
  You might do this faster with a clever integer approach, but I’m using floats here for clarity.
 */
 
+// Include files
+#include <sys/time.h>
 #include <stdio.h>
-#include <curand_kernel.h>
-#include <cuda_runtime.h>
 
-#define NUM_WALKS 20
-#define NUM_STEPS 10000
+// Defines
 
-// Each thread performs one random walk
-__global__ void gpuRandomWalk(int *xPos, int *yPos, unsigned long long seed)
-{
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid >= NUM_WALKS) return;
+// Globals
+int NumberOfRandomSteps = 10000;
+float MidPoint = (float)RAND_MAX/2.0f;
 
-    // cuRAND state for this thread
-	// curandState is a typedef for  curandStateXORWOW_t. There are several
-	// different types of state generators available. 
-	curandStatePhilox4_32_10_t state;
-    curand_init(seed + tid, 0, 0, &state);
+// Function prototypes
+int getRandomDirection();
+int main(int, char**);
 
-    int x = 0, y = 0;
-
-    for (int i = 0; i < NUM_STEPS; i++)
-    {
-        // curand() returns an unsigned int in [0, 2^32 - 1]
-        unsigned int r1 = curand(&state);
-        unsigned int r2 = curand(&state);
-
-        // Interpret the LSB as the random direction
-		// 1U is just saying "1 as an unsigned int" in the same way 
-		// that 1f is just saying "1 as a float".
-        x += (r1 & 1U) ? 1 : -1;  // bitwise check for randomness
-        y += (r2 & 1U) ? 1 : -1;
-    }
-
-    xPos[tid] = x;
-    yPos[tid] = y;
+int getRandomDirection()
+{	
+	int randomNumber = rand();
+	
+	if(randomNumber < MidPoint) return(-1);
+	else return(1);
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
-    int *xPos, *yPos;
-
-    // Allocate unified memory
-    cudaMallocManaged(&xPos, NUM_WALKS * sizeof(int));
-    cudaMallocManaged(&yPos, NUM_WALKS * sizeof(int));
+	srand(time(NULL));
 	
-
-	// the c function time(&time_t p) both returns the time and 
-	// assigns it to a pointer. Since we only want the time, 
-	// we can just pass NULL so it doesn't write anywhere.
-    unsigned long long seed = (unsigned long long)time(NULL);
-
-    // Launch kernel (20 threads total)
-    dim3 threadsPerBlock(20);
-    dim3 numBlocks((NUM_WALKS + threadsPerBlock.x - 1) / threadsPerBlock.x);
-
-    gpuRandomWalk<<<numBlocks, threadsPerBlock>>>(xPos, yPos, seed);
-    cudaDeviceSynchronize();
-
-    // Print results
-    printf("Final positions after %d steps:\n", NUM_STEPS);
-    for (int i = 0; i < NUM_WALKS; i++)
-        printf("Walk %2d: (%d, %d)\n", i, xPos[i], yPos[i]);
-
-    // Cleanup
-    cudaFree(xPos);
-    cudaFree(yPos);
-    return 0;
+	printf(" RAND_MAX for this implementation is = %d \n", RAND_MAX);
+	
+	int positionX = 0;
+	int positionY = 0;
+	for(int i = 0; i < NumberOfRandomSteps; i++)
+	{
+		positionX += getRandomDirection();
+		positionY += getRandomDirection();
+	}
+	
+	printf("\n Final position = (%d,%d) \n", positionX, positionY);
+	return 0;
 }
 
 
