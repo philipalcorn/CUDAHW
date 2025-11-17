@@ -141,26 +141,26 @@ void timer()
 
 void setup()
 {
-    	float randomAngle1, randomAngle2, randomRadius;
-    	float d, dx, dy, dz;
-    	int test;
+    float randomAngle1, randomAngle2, randomRadius;
+    float d, dx, dy, dz;
+    int test;
     	
-    	BlockSize.x = N;
+    BlockSize.x = 1024;
 	BlockSize.y = 1;
 	BlockSize.z = 1;
 	
-	GridSize.x = 1;
+	GridSize.x = (N-1)/BlockSize.x + 1;
 	GridSize.y = 1;
 	GridSize.z = 1;
     	
-    	Damp = 0.5;
+    Damp = 0.5;
     	
-    	M = (float*)malloc(N*sizeof(float));
-    	P = (float3*)malloc(N*sizeof(float3));
-    	V = (float3*)malloc(N*sizeof(float3));
-    	F = (float3*)malloc(N*sizeof(float3));
+    M = (float*)malloc(N*sizeof(float));
+    P = (float3*)malloc(N*sizeof(float3));
+    V = (float3*)malloc(N*sizeof(float3));
+    F = (float3*)malloc(N*sizeof(float3));
     	
-    	cudaMalloc(&MGPU,N*sizeof(float));
+    cudaMalloc(&MGPU,N*sizeof(float));
 	cudaErrorCheck(__FILE__, __LINE__);
 	cudaMalloc(&PGPU,N*sizeof(float3));
 	cudaErrorCheck(__FILE__, __LINE__);
