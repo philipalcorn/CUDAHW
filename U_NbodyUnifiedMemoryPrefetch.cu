@@ -37,7 +37,7 @@
 #define LJQ  4.0
 
 #define DT 0.0001
-#define RUN_TIME 1.0
+#define RUN_TIME 20
 
 // Globals
 int N = 1001;
@@ -50,6 +50,7 @@ float Damp;
 dim3 BlockSize;
 dim3 GridSize;
 
+float3 eye = {0.0f, 0.0f, 2.0f*GlobeRadius};
 // Function prototypes
 void cudaErrorCheck(const char *, int);
 void drawPicture();
@@ -58,6 +59,7 @@ __global__ void getForces(float3 *, float3 *, float3 *, float *, float, float, i
 __global__ void moveBodies(float3 *, float3 *, float3 *, float *, float, float, float, int, int, int);
 void nBody();
 int main(int, char**);
+float  t = 0.0;
 
 void cudaErrorCheck(const char *file, int line)
 {
@@ -74,7 +76,8 @@ void cudaErrorCheck(const char *file, int line)
 void drawPicture()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	
+	glClear(GL_DEPTH_BUFFER_BIT);
+
 	glColor3d(1.0,1.0,0.5);
 	
 	for(int i=0; i<N; i++)
@@ -246,66 +249,69 @@ __global__ void moveBodies(float3 *p, float3 *v, float3 *f, float *m, float damp
 void nBody()
 {
 	int    drawCount = 0; 
-	float  t = 0.0;
 	float dt = DT;
 	
-	printf("\n Simulation is running with %d bodies.\n", N);
+	if (t < RUN_TIME) { printf("\n Simulation is running with %d bodies.\n", N);}
 
-	if(t>= RUN_TIME) { return; }
-
-	// Adjusting bodies
-	for(int i = 0; i < NumberOfGpus; i++)
+	while ( t < RUN_TIME) 
 	{
+
+		// Adjusting bodies
+		for(int i = 0; i < NumberOfGpus; i++)
+		{
+			
+			int offset = i * NPerGPU;
+			int count = min(NPerGPU, N-offset);
+
+			cudaMemLocation loc;
+			loc.type = cudaMemLocationTypeDevice;
+			loc.id = i;
+
+
+			// prefetch the slice for compute 
+			cudaMemPrefetchAsync(P+offset, count*sizeof(float3), loc, 0); 
+			cudaMemPrefetchAsync(V+offset, count*sizeof(float3), loc, 0); 
+			cudaMemPrefetchAsync(F+offset, count*sizeof(float3), loc, 0); 
+			cudaMemPrefetchAsync(M+offset, count*sizeof(float), loc, 0); 
+
+			// will also need to read these
+			cudaMemPrefetchAsync(P, N*sizeof(float3), loc, 0);
+			cudaMemPrefetchAsync(M, N*sizeof(float), loc, 0);
+
+			cudaSetDevice(i);
+			getForces<<<GridSize,BlockSize>>>(P, V, F, M, G, H, NPerGPU, N, i);
+			cudaErrorCheck(__FILE__, __LINE__);
+			moveBodies<<<GridSize,BlockSize>>>(P, V, F, M, Damp, dt, t, NPerGPU, N, i);
+			cudaErrorCheck(__FILE__, __LINE__);
+		}
 		
-		int offset = i * NPerGPU;
-		int count = min(NPerGPU, N-offset);
-
-		cudaMemLocation loc;
-		loc.type = cudaMemLocationTypeDevice;
-		loc.id = i;
-
-
-		// prefetch the slice for compute 
-		cudaMemPrefetchAsync(P+offset, count*sizeof(float3), loc, 0); 
-		cudaMemPrefetchAsync(V+offset, count*sizeof(float3), loc, 0); 
-		cudaMemPrefetchAsync(F+offset, count*sizeof(float3), loc, 0); 
-		cudaMemPrefetchAsync(M+offset, count*sizeof(float), loc, 0); 
-
-		// will also need to read these
-		cudaMemPrefetchAsync(P, N*sizeof(float3), loc, 0);
-		cudaMemPrefetchAsync(M, N*sizeof(float), loc, 0);
-
-		cudaSetDevice(i);
-		getForces<<<GridSize,BlockSize>>>(P, V, F, M, G, H, NPerGPU, N, i);
-		cudaErrorCheck(__FILE__, __LINE__);
-		moveBodies<<<GridSize,BlockSize>>>(P, V, F, M, Damp, dt, t, NPerGPU, N, i);
-		cudaErrorCheck(__FILE__, __LINE__);
-	}
-	
-	// Syncing CPU with GPUs.
-	for(int i = 0; i < NumberOfGpus; i++)
-	{
-		cudaSetDevice(i);
-		cudaDeviceSynchronize();
-		cudaErrorCheck(__FILE__, __LINE__);
-	}
-	
-	if(drawCount == DRAW_RATE) 
-	{
+		// Syncing CPU with GPUs.
+		for(int i = 0; i < NumberOfGpus; i++)
+		{
+			cudaSetDevice(i);
+			cudaDeviceSynchronize();
+			cudaErrorCheck(__FILE__, __LINE__);
+		}
 		
-		// prefetch back to CPU
-		cudaMemLocation lCPU;
-		lCPU.type = cudaMemLocationTypeHost;
-		lCPU.id = 0;
-		cudaMemPrefetchAsync(P, N*sizeof(float3), lCPU,0);
-		cudaDeviceSynchronize;
+		if(drawCount == DRAW_RATE) 
+		{
+			
+			// prefetch back to CPU
+			cudaMemLocation lCPU;
+			lCPU.type = cudaMemLocationTypeHost;
+			lCPU.id = 0;
+			cudaMemPrefetchAsync(P, N*sizeof(float3), lCPU,0);
+			cudaDeviceSynchronize;
 
-		drawPicture();
-		drawCount = 0;
-	}
+			drawPicture();
+			drawCount = 0;
+		}
 	
-	t += dt;
-	drawCount++;
+		t += dt;
+		drawCount++;
+		if(t >= RUN_TIME) {   printf("Simulation Finsihed:.\n");  exit(0); }
+	}
+
 }
 
 int main(int argc, char** argv)
@@ -344,7 +350,7 @@ int main(int argc, char** argv)
 	glutDisplayFunc(drawPicture);
 	glutIdleFunc(nBody);
 	
-	float3 eye = {0.0f, 0.0f, 2.0f*GlobeRadius};
+	eye = {0.0f, 0.0f, 2.0f*GlobeRadius};
 	float near = 0.2;
 	float far = 5.0*GlobeRadius;
 	
